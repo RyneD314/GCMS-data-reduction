@@ -188,7 +188,3 @@ The first element is the label (used in the plot title), the second is the rest 
 ## Citation
 
 If you use this script for published work, please acknowledge the GCMS instrument and the McDonald Observatory. No formal citation is required, but you may link to this repository.
-
----
-
-**End of README**
