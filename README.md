@@ -42,12 +42,7 @@ This document provides all the instructions for reducing raw integral field unit
 
 A convenience shell script `gcms_env.sh` is provided. It creates a Python virtual environment and installs all required packages.
 
-1. **Make the script executable** (only needed once):
-   ```bash
-   chmod +x gcms_env.sh
-   ```
-
-2. **Run the script** to create the environment and install packages:
+1. **Run the script** to create the environment and install packages:
    ```bash
    ./gcms_env.sh
    ```
@@ -56,7 +51,7 @@ A convenience shell script `gcms_env.sh` is provided. It creates a Python virtua
    - Install `numpy`, `scipy`, `matplotlib`, `astropy`, `lmfit`, `astroquery`, `reproject`, and optional packages (`jupyter`, `seaborn`, `tqdm`).
    - Verify that all key imports work.
 
-3. **Activate the environment** whenever you want to run the reduction script:
+2. **Activate the environment** whenever you want to run the reduction script:
    ```bash
    source gcms_ifu_env/bin/activate
    ```
@@ -64,7 +59,7 @@ A convenience shell script `gcms_env.sh` is provided. It creates a Python virtua
 
    You should see `(gcms_ifu_env)` at the beginning of your terminal prompt.
 
-4. **Run the reduction script**:
+3. **Run the reduction script**:
    ```bash
    python gcms_reduce.py
    ```
