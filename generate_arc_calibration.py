@@ -2,15 +2,7 @@
 """
 generate_arc_calibration.py – Generate arc line list and wavelength coefficients
 from raw GCMS arc, bias, and flat frames.
-
-Usage:
-    python generate_arc_calibration.py --path /data/NGC7212 \\
-        --arcs gcms0536.fits --an 11 \\
-        --bias gcms0547.fits --bn 11 \\
-        --flat gcms0558.fits --fn 11 \\
-        --elements He Ne Ar \\
-        --out_arc_lines arc_lines_auto.txt \\
-        --out_coeff wavelength_coeffs.txt
+Now includes Sodium (Na) arc lines.
 """
 
 import os
@@ -24,7 +16,7 @@ from scipy.optimize import curve_fit
 
 # ----------------------------------------------------------------------
 # Known arc lines for common GCMS lamps (wavelength in Angstroms)
-# These are typical bright lines; you can extend or modify.
+# ----------------------------------------------------------------------
 KNOWN_LINES = {
     "He": [
         3888.65, 4471.48, 4713.15, 4921.93, 5015.68,
@@ -58,11 +50,19 @@ KNOWN_LINES = {
     "Hg": [
         3650.15, 4046.56, 4358.33, 5460.74, 5769.60,
         5790.66
+    ],
+    "Na": [
+        5889.95,   # Na I D2
+        5895.92    # Na I D1
+        # Additional weaker Na lines (rarely needed):
+        # 3302.37, 3302.98,   # Na I UV doublet
+        # 5682.65, 5688.22,   # Na I
+        # 6154.23, 6160.75    # Na I
     ]
 }
 
 # ----------------------------------------------------------------------
-# Helper functions from gcms_reduce_final.py (adapted)
+# Helper functions (same as before)
 # ----------------------------------------------------------------------
 
 def expand_file_sequence(start_file, n, base_path=None):
@@ -102,7 +102,6 @@ def extract_fiber_spectra(frame, peak_positions, width=5):
     return spectra
 
 def fit_wavelength_solution(pixel_positions, wavelengths, deg=3):
-    """Fit polynomial and return coefficients."""
     coeffs = np.polyfit(pixel_positions, wavelengths, deg)
     return coeffs
 
@@ -128,7 +127,7 @@ def main():
     parser.add_argument("--distance", type=int, default=5,
                         help="Minimum peak separation (pixels)")
     parser.add_argument("--elements", nargs="+", required=True,
-                        help="Lamp elements (e.g., He Ne Ar). Use known elements: He, Ne, Ar, Hg")
+                        help="Lamp elements (e.g., He Ne Ar Na). Use known elements: He, Ne, Ar, Hg, Na")
     parser.add_argument("--out_arc_lines", default="arc_lines_auto.txt",
                         help="Output file for pixel-wavelength pairs")
     parser.add_argument("--out_coeff", default="",
@@ -225,31 +224,14 @@ def main():
     known_wavelengths = np.array(sorted(known_wavelengths))
     print(f"Total known lines from {args.elements}: {len(known_wavelengths)}")
 
-    # Match detected peaks to known lines (simplistic: nearest in pixel coordinate)
-    # For a more robust match, one would use a preliminary dispersion estimate.
-    # Here we assume the arc peaks are roughly in order and we cross-match by index.
-    # We'll do a greedy matching: for each known wavelength, find the closest peak
-    # within tolerance, without reusing peaks.
-    matched_pixels = []
-    matched_waves = []
-    used_peaks = set()
-
-    # Approximate scaling: assume first and last known lines correspond to first and last peaks
-    # This is a heuristic; for better results, a user could provide an initial guess.
-    # For simplicity, we match by index after sorting both lists.
-    # Sort peaks and known lines by wavelength (but we don't know wavelengths yet!)
-    # Better: assume the peaks are already sorted in pixel order, and known lines sorted by wavelength.
-    # Then we pair them by order after scaling.
-    if len(arc_peaks) < 3:
-        print("Not enough detected peaks to perform matching.")
+    if len(known_wavelengths) == 0:
+        print("No known wavelengths available. Exiting.")
         sys.exit(1)
 
-    # Sort detected peaks ascending
+    # Match peaks to known lines using linear scaling
     arc_peaks_sorted = np.sort(arc_peaks)
     known_waves_sorted = np.sort(known_wavelengths)
 
-    # Simple linear scaling: map pixel index to approximate wavelength
-    # Use first and last detected peaks and first and last known lines.
     p0 = arc_peaks_sorted[0]
     p1 = arc_peaks_sorted[-1]
     w0 = known_waves_sorted[0]
@@ -257,21 +239,20 @@ def main():
     if p1 == p0:
         print("Peak range is zero; cannot scale.")
         sys.exit(1)
-    # Fit linear
     a = (w1 - w0) / (p1 - p0)
     b = w0 - a * p0
 
-    # Now for each detected peak, compute approximate wavelength and find closest known line
+    matched_pixels = []
+    matched_waves = []
+
     for p in arc_peaks_sorted:
         approx_wave = a * p + b
         idx = np.argmin(np.abs(known_waves_sorted - approx_wave))
         closest = known_waves_sorted[idx]
-        if abs(closest - approx_wave) < args.match_tolerance * a:  # tolerance in Angstroms? Convert pixel tol
-            # Accept match if not already used (greedy)
-            if closest not in matched_waves:
+        if abs(closest - approx_wave) < args.match_tolerance * a:
+            if closest not in matched_waves:  # avoid duplicate wavelength matches
                 matched_pixels.append(p)
                 matched_waves.append(closest)
-                # mark as used? We'll just avoid duplicate wavelengths.
 
     matched_pixels = np.array(matched_pixels)
     matched_waves = np.array(matched_waves)
@@ -290,12 +271,11 @@ def main():
     coeffs = fit_wavelength_solution(matched_pixels, matched_waves, deg=args.poly_degree)
     print(f"Polynomial coefficients (degree {args.poly_degree}): {coeffs}")
 
-    # Optionally save coefficients
     if args.out_coeff:
         np.savetxt(args.out_coeff, [coeffs], fmt="%.8e")
         print(f"Saved wavelength coefficients to {args.out_coeff}")
 
-    # Diagnostic plot
+    # Optional diagnostic plot
     try:
         import matplotlib.pyplot as plt
         plt.figure(figsize=(10,5))
