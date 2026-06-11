@@ -11,10 +11,10 @@ region selection and emission line fitting.
 
 Usage:
     # Using a configuration file (recommended for full control)
-    python gcms_reduce_unified.py --config myconfig.cfg
+    python gcms_reduce.py --config myconfig.cfg
 
     # Using command-line arguments (simpler, directory-based)
-    python gcms_reduce_unified.py --sci_dir science/ --bias_dir biases/ --flat_dir flats/ --arc_dir arcs/ \\
+    python gcms_reduce.py --sci_dir science/ --bias_dir biases/ --flat_dir flats/ --arc_dir arcs/ \\
         --n_dither 3 --fiber_coords fibers.csv --out_cube cube.fits --object_name "NGC 1277"
 """
 
